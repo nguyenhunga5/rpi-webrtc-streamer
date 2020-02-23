@@ -85,10 +85,8 @@ class AppWsClient : public rtc::MessageHandler,
     void SendEvent(int sockid, EventType is_event,
                    const std::string& event_mesg);
 
-    AppClientInfo* findClient(int peer_id);
-
     std::string ws_url_;
-    std::map<int, AppClientInfo*> app_clients_;
+    AppClientInfo app_client_;
     WebSocketMessage* websocket_message_;
 
     // WebSocket chunked frames
