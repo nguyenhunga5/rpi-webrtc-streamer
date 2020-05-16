@@ -17,6 +17,8 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
+#include "streamer.h"
+
 #include <memory>
 #include <utility>
 #include <vector>
@@ -33,33 +35,26 @@
 #include "api/video_codecs/builtin_video_encoder_factory.h"
 #include "api/video_codecs/video_decoder_factory.h"
 #include "api/video_codecs/video_encoder_factory.h"
-
+#include "config_media.h"
+#include "config_streamer.h"
 #include "modules/audio_device/dummy/audio_device_dummy.h"
 #include "modules/audio_device/include/audio_device.h"
 #include "modules/audio_processing/include/audio_processing.h"
 #include "modules/video_capture/video_capture.h"
 #include "modules/video_capture/video_capture_factory.h"
 #include "p2p/base/port_allocator.h"
+#include "pc/test/fake_video_track_source.h"
 #include "pc/video_track_source.h"
-#include "test/vcm_capturer.h"
-
-#include "rtc_base/checks.h"
-#include "rtc_base/logging.h"
-#include "rtc_base/strings/json.h"
-
-#include "config_media.h"
-#include "config_streamer.h"
-#include "streamer.h"
-#include "streamer_observer.h"
-
 #include "raspi_decoder.h"
 #include "raspi_decoder_dummy.h"
 #include "raspi_encoder.h"
 #include "raspi_encoder_impl.h"
+#include "rtc_base/checks.h"
+#include "rtc_base/logging.h"
+#include "rtc_base/strings/json.h"
+#include "streamer_observer.h"
+#include "test/vcm_capturer.h"
 #include "utils_pc_strings.h"
-
-#include "pc/test/fake_video_track_source.h"
-// #include "pc/test/fake_periodic_video_track_source.h"
 
 // Names used for SDP label
 static const char kAudioLabel[] = "audio_label";
@@ -75,9 +70,6 @@ static const char kCandidateType[] = "type";
 // Names used for a SessionDescription JSON object.
 static const char kSessionDescriptionTypeName[] = "type";
 static const char kSessionDescriptionSdpName[] = "sdp";
-
-// Max Bitrate
-static const int kDefaultMaxBitrate = 3500000;
 
 class DummySetSessionDescriptionObserver
     : public webrtc::SetSessionDescriptionObserver {
@@ -138,16 +130,6 @@ bool Streamer::InitializePeerConnection() {
     signaling_thread_->SetName("signaling_thread", nullptr);
     RTC_CHECK(signaling_thread_->Start()) << "Failed to start signaling thread";
 
-    auto audio_encoder_factory = webrtc::CreateBuiltinAudioEncoderFactory();
-    auto audio_decoder_factory = webrtc::CreateBuiltinAudioDecoderFactory();
-
-    std::unique_ptr<webrtc::VideoDecoderFactory> video_decoder_factory =
-        std::unique_ptr<webrtc::VideoDecoderFactory>(
-            webrtc::RaspiVideoDecoderFactory::CreateVideoDecoderFactory());
-    std::unique_ptr<webrtc::VideoEncoderFactory> video_encoder_factory =
-        std::unique_ptr<webrtc::VideoEncoderFactory>(
-            webrtc::RaspiVideoEncoderFactory::CreateVideoEncoderFactory());
-
     //  Audio Device Module
     adm_ = nullptr;
     // TODO: Tempoary Disable audio_enable config parameter.
@@ -155,18 +137,19 @@ bool Streamer::InitializePeerConnection() {
     // dummy audio
     /****
     if(streamer_config_->GetAudioEnable() == false ) {
-        //  The default value of AudioEnable is false. To use audio,
-        //  you must set audio_enable to true in webrtc_streamer.conf.
-        adm_ = webrtc::AudioDeviceModule::Create(
-                webrtc::AudioDeviceModule::AudioLayer::kDummyAudio);
+    //  The default value of AudioEnable is false. To use audio,
+    //  you must set audio_enable to true in webrtc_streamer.conf.
+    adm_ = webrtc::AudioDeviceModule::Create(
+        webrtc::AudioDeviceModule::AudioLayer::kDummyAudio);
     };
     *****/
-
     peer_connection_factory_ = webrtc::CreatePeerConnectionFactory(
         network_thread_.get(), worker_thread_.get(), signaling_thread_.get(),
-        adm_.get() /* adm */, audio_encoder_factory, audio_decoder_factory,
-        std::move(video_encoder_factory), std::move(video_decoder_factory),
-        nullptr /* audio_mixer */, nullptr /* audio_processor */);
+        adm_.get() /* adm */, webrtc::CreateBuiltinAudioEncoderFactory(),
+        webrtc::CreateBuiltinAudioDecoderFactory(),
+        webrtc::CreateRaspiVideoEncoderFactory(),
+        webrtc::CreateRaspiVideoDecoderFactory(), nullptr /* audio_mixer */,
+        nullptr /* audio_processor */);
     if (!peer_connection_factory_.get()) {
         RTC_LOG(LS_ERROR) << __FUNCTION__
                           << "Failed to initialize PeerConnectionFactory";

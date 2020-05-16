@@ -27,30 +27,26 @@ ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
+#include "raspi_encoder_impl.h"
+
 #include <limits>
 #include <string>
 
 #include "absl/strings/match.h"
-#include "common_video/libyuv/include/webrtc_libyuv.h"
-#include "media/base/media_constants.h"
-#include "rtc_base/checks.h"
-#include "rtc_base/logging.h"
-#include "system_wrappers/include/metrics.h"
-
 #include "common_types.h"
 #include "common_video/h264/h264_bitstream_parser.h"
 #include "common_video/h264/h264_common.h"
 #include "common_video/h264/profile_level_id.h"
-
+#include "common_video/libyuv/include/webrtc_libyuv.h"
+#include "config_media.h"
+#include "media/base/media_constants.h"
 #include "modules/video_coding/utility/simulcast_rate_allocator.h"
 #include "modules/video_coding/utility/simulcast_utility.h"
-
-#include "rtc_base/platform_thread.h"
-
-#include "config_media.h"
-
 #include "raspi_encoder.h"
-#include "raspi_encoder_impl.h"
+#include "rtc_base/checks.h"
+#include "rtc_base/logging.h"
+#include "rtc_base/platform_thread.h"
+#include "system_wrappers/include/metrics.h"
 
 namespace webrtc {
 
@@ -179,6 +175,11 @@ int32_t RaspiEncoderImpl::InitEncode(const VideoCodec* codec_settings,
         return WEBRTC_VIDEO_CODEC_ERROR;
     }
 
+    // TESTING
+    const int required_capacity = 400000;
+    encoded_image_.SetEncodedData(
+        EncodedImageBuffer::Create(required_capacity));
+
     // start capture in here
     mmal_encoder_->StartCapture();
 
@@ -196,7 +197,8 @@ int32_t RaspiEncoderImpl::InitEncode(const VideoCodec* codec_settings,
     SimulcastRateAllocator init_allocator(codec_);
     VideoBitrateAllocation allocation =
         init_allocator.Allocate(VideoBitrateAllocationParameters(
-            DataRate::kbps(codec_.startBitrate), codec_.maxFramerate));
+            DataRate::KilobitsPerSec(codec_.startBitrate),
+            codec_.maxFramerate));
     SetRates(RateControlParameters(allocation, codec_.maxFramerate));
     return WEBRTC_VIDEO_CODEC_OK;
 }
@@ -480,7 +482,8 @@ bool RaspiEncoderImpl::DrainProcess() {
         encoded_image_.ntp_time_ms_ = ntp_capture_time_ms;
         encoded_image_.capture_time_ms_ = capture_time_ms;
 
-        encoded_image_.set_buffer(buf->data, buf->alloc_size);
+        // encoded_image_.set_buffer(buf->data, buf->alloc_size);
+        memcpy(encoded_image_.data(), buf->data, buf->length);
         encoded_image_.set_size(buf->length);
         encoded_image_._frameType =
             (buf->flags & MMAL_BUFFER_HEADER_FLAG_KEYFRAME)

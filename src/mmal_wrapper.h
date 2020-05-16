@@ -32,18 +32,17 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <mutex>
 
+#include "config_media.h"
+#include "mmal_video.h"
 #include "rtc_base/critical_section.h"
 #include "rtc_base/event.h"
 #include "rtc_base/task_queue.h"
 #include "system_wrappers/include/clock.h"
 
-#include "config_media.h"
-#include "mmal_video.h"
-
 namespace webrtc {
 
 #define FRAME_BUFFER_SIZE 65536 * 3
-#define FRAME_QUEUE_LENGTH 5
+#define FRAME_QUEUE_LENGTH 3
 
 ////////////////////////////////////////////////////////////////////////////////////////
 //

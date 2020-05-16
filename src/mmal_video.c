@@ -60,16 +60,15 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define _GNU_SOURCE
 #endif
 
+#include <arpa/inet.h>
 #include <memory.h>
+#include <netinet/in.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sysexits.h>
-
-#include <arpa/inet.h>
-#include <netinet/in.h>
 #include <sys/socket.h>
 #include <sys/types.h>
+#include <sysexits.h>
 
 #define VERSION_STRING "v1.3.12"
 
@@ -916,7 +915,6 @@ MMAL_STATUS_T create_encoder_component(RASPIVID_STATE *state) {
     /* Create pool of buffer headers for the output port to consume */
     pool = mmal_port_pool_create(encoder_output, encoder_output->buffer_num,
                                  encoder_output->buffer_size);
-
     if (!pool) {
         vcos_log_error(
             "Failed to create buffer header pool for encoder output port %s",

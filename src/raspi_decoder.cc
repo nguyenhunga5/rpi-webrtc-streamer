@@ -27,36 +27,34 @@ ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
+#include "raspi_decoder.h"
+
 #include <limits>
 #include <string>
 
 #include "absl/memory/memory.h"
-#include "rtc_base/checks.h"
-#include "rtc_base/logging.h"
-
 #include "common_types.h"
 #include "common_video/h264/h264_bitstream_parser.h"
 #include "common_video/h264/h264_common.h"
 #include "common_video/h264/profile_level_id.h"
-
 #include "media/base/codec.h"
-
-#include "raspi_decoder.h"
+#include "modules/video_coding/codecs/h264/include/h264.h"
 #include "raspi_decoder_dummy.h"
+#include "rtc_base/checks.h"
+#include "rtc_base/logging.h"
 
 namespace webrtc {
 
 std::unique_ptr<RaspiDecoder> RaspiDecoder::Create() {
     RTC_LOG(LS_INFO) << "Creating H264DecoderDummy.";
-    return absl::make_unique<RaspiDecoderDummy>();
+    return std::make_unique<RaspiDecoderDummy>();
 }
 
 bool RaspiDecoder::IsSupported() { return true; }
 
-RaspiVideoDecoderFactory*
-RaspiVideoDecoderFactory::CreateVideoDecoderFactory() {
+std::unique_ptr<VideoDecoderFactory> CreateRaspiVideoDecoderFactory() {
     RTC_LOG(LS_INFO) << "Creating RaspiVideoDecoderFactory.";
-    return new RaspiVideoDecoderFactory;
+    return std::make_unique<RaspiVideoDecoderFactory>();
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -66,22 +64,25 @@ RaspiVideoDecoderFactory::CreateVideoDecoderFactory() {
 ///////////////////////////////////////////////////////////////////////////////
 RaspiVideoDecoderFactory::RaspiVideoDecoderFactory() {
     RTC_LOG(INFO) << "Raspi H.264 Video decoder factory.";
+    for (const SdpVideoFormat& h264_format : SupportedH264Codecs())
+        supported_formats_.push_back(h264_format);
 }
 
 std::unique_ptr<VideoDecoder> RaspiVideoDecoderFactory::CreateVideoDecoder(
     const SdpVideoFormat& format) {
     const cricket::VideoCodec codec(format);
 
-    // Try creating external decoder.
-    std::unique_ptr<VideoDecoder> video_decoder;
-
     RTC_LOG(INFO) << "Raspi " << format.name << " video decoder created";
-    video_decoder = RaspiDecoder::Create();
-    return move(video_decoder);
+    return RaspiDecoder::Create();
 }
 
 RaspiVideoDecoderFactory::~RaspiVideoDecoderFactory() {
     RTC_LOG(INFO) << "Raspi Video decoder factory destroy";
+}
+
+std::vector<SdpVideoFormat> RaspiVideoDecoderFactory::GetSupportedFormats()
+    const {
+    return supported_formats_;
 }
 
 }  // namespace webrtc
