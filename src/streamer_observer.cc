@@ -60,9 +60,8 @@ bool SocketServerHelper::ActivateStreamSession(const int peer_id,
     RTC_DCHECK(streamer_proxy_ != nullptr);
     RTC_DCHECK(streamsession_active_ != true);
 
-    peer_id_ = peer_id;
-    peer_name_ = peer_name_;
-    if (streamer_proxy_->ObtainStreamer(this, peer_id_, peer_name_)) {
+    clients[peer_id] = peer_name;
+    if (streamer_proxy_->ObtainStreamer(this, peer_id, peer_name)) {
         streamsession_active_ = true;
         return true;
     };
@@ -76,29 +75,19 @@ bool SocketServerHelper::ActivateStreamSession(const int peer_id,
     RTC_DCHECK(streamer_proxy_ != nullptr);
     RTC_DCHECK(streamsession_active_ != true);
 
-    peer_id_ = peer_id;
-    peer_name_ = peer_name_;
-    if (streamer_proxy_->ObtainStreamer(this, peer_id_, peer_name_, message)) {
+    clients[peer_id] = peer_name;
+    if (streamer_proxy_->ObtainStreamer(this, peer_id, peer_name, message)) {
         streamsession_active_ = true;
         return true;
     };
     return false;
 }
 
-int SocketServerHelper::GetActivePeerId() {
-    RTC_LOG(INFO) << __FUNCTION__;
-    RTC_DCHECK(streamer_proxy_ != nullptr);
-    if (streamsession_active_)
-        return peer_id_;
-    else
-        return 0;
-}
-
-void SocketServerHelper::MessageFromPeer(const std::string& message) {
+void SocketServerHelper::MessageFromPeer(const int peer_id, const std::string& message) {
     RTC_LOG(INFO) << __FUNCTION__;
     RTC_DCHECK(streamer_proxy_ != nullptr);
     if (streamsession_active_) {
-        streamer_proxy_->MessageFromPeer(peer_id_, message);
+        streamer_proxy_->MessageFromPeer(peer_id, message);
         return;
     };
     RTC_LOG(LS_ERROR)

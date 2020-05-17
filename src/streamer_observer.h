@@ -74,16 +74,14 @@ class SocketServerHelper : public SocketServerObserver {
     bool ActivateStreamSession(const int peer_id, const std::string& peer_name,
                                const std::string& message);
     void DeactivateStreamSession();
-    void MessageFromPeer(const std::string& message);
-    int GetActivePeerId();
+    void MessageFromPeer(const int peer_id, const std::string& message);
     bool IsStreamSessionActive();
 
    private:
     bool streamsession_active_;
     StreamerObserver* streamer_callback_;
     StreamerProxy* streamer_proxy_;
-    std::string peer_name_;
-    int peer_id_;
+    std::map<int, std::string> clients;
 };
 
 class StreamerProxy : public SocketServerObserver {

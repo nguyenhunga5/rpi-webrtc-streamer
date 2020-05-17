@@ -340,7 +340,7 @@ bool AppWsClient::OnMessage(int sockid, const std::string& message) {
                     return true;
                 };
 
-                MessageFromPeer(msg);
+                MessageFromPeer(sockid, msg);
                 return true;
             }
             SendEvent(sockid, EventError, kErrMessageEmpy);
