@@ -42,9 +42,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "rtc_base/platform_thread.h"
 #include "system_wrappers/include/clock.h"
 
-class RaspiHttpImage : public MotionBlobObserver,
-                    public MotionImvObserver,
-                    public rtc::Event {
+class RaspiHttpImage : public rtc::Event {
    public:
     explicit RaspiHttpImage(int width, int height, int framerate, int bitrate);
     explicit RaspiHttpImage();
@@ -59,6 +57,7 @@ class RaspiHttpImage : public MotionBlobObserver,
    private:
     static void DrainThread(void*);
     bool DrainProcess();
+    bool isRunning;
 
     // Motion Capture params
     int width_, height_, framerate_, bitrate_;

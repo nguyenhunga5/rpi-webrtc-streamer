@@ -40,62 +40,14 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "rtc_base/platform_thread.h"
 #include "rtc_base/thread.h"
 
-static const float kKushGaugeConstant = 0.07;
-static const uint64_t kDrainProcessDelayMaximumInMicro = 32000;  // 32 ms
-static const int kEventWaitPeriod = 5;
-
-static const int kDefaultMotionAverageSize = 32;
-static const int kDefaultMotionActiveTriggerPercent = 10;
-static const int kDefaultMotionActiveClearPercent = 5;
-static const int kDefaultMotionClearWaitPeriod = 5000;   // 5 seconds
-static const int kDefaultMotionAveragePrintDiff = 1000;  // 1 second
-
 RaspiMotion::RaspiMotion(int width, int height, int framerate, int bitrate)
-    : Event(false, false),
-      motion_active_(false),
-      motion_drain_quit_(false),
-      motion_vector_quit_(false),
-      width_(width),
-      height_(height),
-      framerate_(framerate),
-      bitrate_(bitrate),
-      mmal_encoder_(nullptr),
-      clock_(webrtc::Clock::GetRealTimeClock()),
-      motion_analysis_(width, height, framerate, false),
-      motion_active_average_(kDefaultMotionAverageSize) {
-    queue_capacity_ = (framerate * VIDEO_INTRAFRAME_PERIOD * 2) * 1.2;
-    frame_queue_size_ = (width * height * kKushGaugeConstant * 2) / 8;
-    mv_queue_size_ = (width / 16 + 1) * (height / 16) * 4;
-
+    : Event(false, false) {
+    
     mv_shared_buffer_.reset(
         new rtc::BufferQueue(queue_capacity_, mv_queue_size_));
-
-    motion_file_.reset(new RaspiMotionFile(
-        config_motion::motion_directory, config_motion::motion_file_prefix,
-        queue_capacity_, frame_queue_size_, mv_queue_size_));
-
-    motion_analysis_.SetBlobEnable(true);
-    motion_analysis_.RegisterBlobObserver(this);
-    motion_analysis_.RegisterImvObserver(this);
-
-    motion_state_ = CLEARED;
-    last_average_print_timestamp_ = 0;
-    motion_clear_wait_period_ = kDefaultMotionClearWaitPeriod;
-
-    motion_active_percent_trigger_threshold_ =
-        kDefaultMotionActiveTriggerPercent;
-    motion_active_percent_clear_threshold_ = kDefaultMotionActiveClearPercent;
 }
 
-RaspiMotion::RaspiMotion()
-    : RaspiMotion(config_motion::motion_width, config_motion::motion_height,
-                  config_motion::motion_fps, config_motion::motion_bitrate) {
-    motion_clear_wait_period_ = config_motion::motion_clear_wait_period;
-    motion_active_percent_clear_threshold_ =
-        config_motion::motion_clear_percent;
-}
-
-bool RaspiMotion::IsActive() const { return motion_active_; }
+bool RaspiMotion::IsActive() const { return isRunning; }
 
 bool RaspiMotion::StartCapture() {
     RTC_LOG(INFO) << "Raspi Motion Starting";
@@ -145,22 +97,12 @@ bool RaspiMotion::StartCapture() {
         drainThreadStarted_ = true;
     }
 
-    // start Motion Vector thread ;
-    if (!motionVectorThread_) {
-        RTC_LOG(INFO) << "Motion Vector analyse thread initialized.";
-        motionVectorThread_.reset(
-            new rtc::PlatformThread(RaspiMotion::MotionVectorThread, this,
-                                    "MotionVector", rtc::kHighPriority));
-        motionVectorThread_->Start();
-        motionVectorThreadStarted_ = true;
-    }
-
-    motion_active_ = true;
+    isRunning = true;
     return true;
 }
 
 void RaspiMotion::StopCapture() {
-    motion_active_ = false;
+    isRunning = false;
 
     if (motionVectorThread_) {
         motion_vector_quit_ = true;
@@ -223,9 +165,9 @@ void RaspiMotion::OnActivePoints(int total_points, int active_points) {
     double active_percent = active_points * 100 / total_points;
     uint64_t current_timestamp;
 
-    motion_active_average_.AddSample((int)active_percent);
+    isRunningaverage_.AddSample((int)active_percent);
     absl::optional<int> moving_average =
-        motion_active_average_.GetAverageRoundedDown();
+        isRunningaverage_.GetAverageRoundedDown();
     if (moving_average) {
         current_timestamp = clock_->TimeInMilliseconds();
         if (current_timestamp - last_average_print_timestamp_ >
@@ -236,7 +178,7 @@ void RaspiMotion::OnActivePoints(int total_points, int active_points) {
             };
         }
         if (motion_state_ == WAIT_CLEAR) {
-            if (*moving_average < motion_active_percent_clear_threshold_ &&
+            if (*moving_average < isRunningpercent_clear_threshold_ &&
                 current_timestamp - motion_clear_wait_timestamp_ >
                     motion_clear_wait_period_) {
                 RTC_LOG(INFO) << "Motion Changing state WAIT_CLEAR to CLEAR ";
