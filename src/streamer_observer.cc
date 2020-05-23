@@ -130,10 +130,15 @@ StreamerProxy* StreamerProxy::GetInstance() {
         streamer_proxy_->active_peer_id_ = 0;
         streamer_proxy_->streamer_callback_ = nullptr;
         streamer_proxy_->active_socket_observer_ = nullptr;
+        
         if (config_motion::motion_detection_enable == true) {
             streamer_proxy_->raspi_motion_.reset(new RaspiMotion());
             streamer_proxy_->raspi_motion_->StartCapture();
         }
+
+        // Init Http Image
+        streamer_proxy_->raspi_httpimage_.reset(new RaspiHttpImage());
+        streamer_proxy_->raspi_httpimage_->StartCapture();
     }
     return streamer_proxy_;
 }
@@ -181,6 +186,12 @@ bool StreamerProxy::ObtainStreamer(SocketServerObserver* socket_server,
                 raspi_motion_->StopCapture();
             }
         }
+
+        if (raspi_httpimage_ && raspi_httpimage_->IsActive())
+        {
+            raspi_httpimage_->StartCapture();
+        }
+        
         active_peer_id_ = peer_id;
         active_socket_observer_ = socket_server;
         streamer_callback_->OnPeerConnected(peer_id, name);
@@ -202,6 +213,11 @@ bool StreamerProxy::ObtainStreamer(SocketServerObserver* socket_server,
                 raspi_motion_->StopCapture();
             }
         }
+
+        if (raspi_httpimage_ && raspi_httpimage_->IsActive()) {
+                raspi_httpimage_->StartCapture();
+        }
+
         active_peer_id_ = peer_id;
         active_socket_observer_ = socket_server;
         streamer_callback_->OnMessageFromPeer(peer_id, message);
@@ -227,6 +243,11 @@ void StreamerProxy::ReleaseStreamer(SocketServerObserver* socket_server,
 #endif /* __NOTI_ENABLE__ */
                 raspi_motion_->StartCapture();
             }
+        }
+
+        if (raspi_httpimage_ && raspi_httpimage_->IsActive() == false) {
+            raspi_httpimage_.reset(new RaspiHttpImage());
+            raspi_httpimage_->StopCapture();
         }
     }
 }
