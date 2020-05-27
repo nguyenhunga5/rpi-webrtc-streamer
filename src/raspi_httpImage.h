@@ -65,26 +65,12 @@ class RaspiHttpImage : public rtc::Event {
     webrtc::MMALEncoderWrapper* mmal_encoder_;
     webrtc::Clock* const clock_;
 
-    // buffer for motion vector processing
-    std::unique_ptr<rtc::BufferQueue> mv_shared_buffer_;
-
     // Encoded frame process thread
     bool drainThreadStarted_;
     std::unique_ptr<rtc::PlatformThread> drainThread_;
 
-    bool motionVectorThreadStarted_;
-    std::unique_ptr<rtc::PlatformThread> motionVectorThread_;
+    std::vector<uint8_t> imageBuff_;
 
-    static void MotionVectorThread(void*);
-    bool MotionVectorProcess();
-
-    // making buffer queue_capacity based on IntraFrame Period
-    size_t queue_capacity_;
-    size_t frame_queue_size_;  // Default Frame buffer queue size
-    size_t mv_queue_size_;     // Default Frame buffer queue size
-
-    uint32_t mvx_, mvy_;
-    uint8_t *imageBuff_;
     void GetMotionImage(uint8_t *buffer, int len);
 
     RTC_DISALLOW_COPY_AND_ASSIGN(RaspiHttpImage);

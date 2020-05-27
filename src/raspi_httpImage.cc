@@ -54,17 +54,6 @@ RaspiHttpImage::RaspiHttpImage(int width, int height, int framerate, int bitrate
     mmal_encoder_(nullptr),
     clock_(webrtc::Clock::GetRealTimeClock()) {
     
-    static const int kMvPixelWidth = 16;
-    mvx_ = width / kMvPixelWidth + 1;
-    mvy_ = height / kMvPixelWidth;
-    imageBuff_ = new uint8_t[mvx_ * mvy_];
-    queue_capacity_ = (framerate * VIDEO_INTRAFRAME_PERIOD * 2) * 1.2;
-    frame_queue_size_ = (width * height * kKushGaugeConstant * 2) / 8;
-    mv_queue_size_ = (width / 16 + 1) * (height / 16) * 4;
-
-    mv_shared_buffer_.reset(
-        new rtc::BufferQueue(queue_capacity_, mv_queue_size_)
-    );
 }
 
 RaspiHttpImage::RaspiHttpImage(): RaspiHttpImage(config_motion::motion_width, 
@@ -117,16 +106,6 @@ bool RaspiHttpImage::StartCapture() {
         drainThreadStarted_ = true;
     }
 
-    // start Motion Vector thread ;
-    if (!motionVectorThread_) {
-        RTC_LOG(INFO) << "Motion Vector analyse thread initialized.";
-        motionVectorThread_.reset(
-            new rtc::PlatformThread(RaspiHttpImage::MotionVectorThread, this,
-                                    "RaspiHttpImage", rtc::kHighPriority));
-        motionVectorThread_->Start();
-        motionVectorThreadStarted_ = true;
-    }
-
     isRunning = true;
     return true;
 }
@@ -162,11 +141,29 @@ void RaspiHttpImage::DrainThread(void *obj) {
     }
 }
 
+template <typename T>
+std::vector<T> operator+(const std::vector<T> &A, const std::vector<T> &B)
+{
+    std::vector<T> AB;
+    AB.reserve( A.size() + B.size() );                // preallocate memory
+    AB.insert( AB.end(), A.begin(), A.end() );        // add A;
+    AB.insert( AB.end(), B.begin(), B.end() );        // add B;
+    return AB;
+}
+
+template <typename T>
+std::vector<T> &operator+=(std::vector<T> &A, const std::vector<T> &B)
+{
+    A.reserve( A.size() + B.size() );                // preallocate memory without erase original data
+    A.insert( A.end(), B.begin(), B.end() );         // add B;
+    return A;                                        // here A could be named AB
+}
+
 bool RaspiHttpImage::DrainProcess() {
     uint64_t current_timestamp, timestamp;
     MMAL_BUFFER_HEADER_T *buf = nullptr;
     size_t length;
-    RTC_LOG(INFO) << "Have new frame";
+    
     current_timestamp = clock_->TimeInMicroseconds();
     buf = mmal_encoder_->GetEncodedFrame();
     if (buf && buf->length > 0) {
@@ -174,13 +171,28 @@ bool RaspiHttpImage::DrainProcess() {
 
         if (buf->flags & MMAL_BUFFER_HEADER_FLAG_CODECSIDEINFO) {
             // queuing motion vector for motion analysis
-            if (mv_shared_buffer_->WriteBack(buf->data, buf->length, &length) ==
-                false) {
-                RTC_LOG(LS_ERROR) << "Faild to queue in MV shared buffer";
-            };
             Set();  // Event Set to wake up Http Image vector process
         } else if (buf->flags & MMAL_BUFFER_HEADER_FLAG_FRAME) {
+            if (is_keyframe) {
+                size_t bytes = imageBuff_.size();
+                RTC_LOG(INFO) << "Have image, size " << bytes << " bytes, write to file";
+                if (bytes > 0) {
+                    RTC_LOG(INFO) << "Have image, size " << bytes << " bytes, write to file";
+                    uint8_t *buffer = imageBuff_.data();
+                    char *name = "test.jpg";
+                    FILE *pFile;
+                    pFile = fopen(name, "wb");
+                    fwrite(buffer, sizeof(uint8_t), bytes, pFile);
+                    fclose(pFile);
+                }
+
+                RTC_LOG(INFO) << "Is Key frame, do clear";
+                imageBuff_.clear();
+            }
             
+            RTC_LOG(INFO) << "Have new frame " << buf->length << " bytes";
+            std::vector<uint8_t> data(buf->data, buf->data + buf->length);
+            imageBuff_ += data;
             RTC_DCHECK(buf->length == length);
         } else {
             RTC_LOG(LS_ERROR) << "**************************************";
@@ -198,43 +210,6 @@ bool RaspiHttpImage::DrainProcess() {
     return true;
 }
 
-///////////////////////////////////////////////////////////////////////////////
-//
-// Raspi motion vector processing
-//
-///////////////////////////////////////////////////////////////////////////////
-void RaspiHttpImage::MotionVectorThread(void *obj) {
-    RaspiHttpImage *raspi_httpimage = static_cast<RaspiHttpImage *>(obj);
-    while (raspi_httpimage->MotionVectorProcess()) {
-    }
-}
-
-bool RaspiHttpImage::MotionVectorProcess() {
-    uint8_t buffer[mv_queue_size_];
-    size_t bytes;
-
-    if (!isRunning) {
-        return false;
-    };
-
-    if (mv_shared_buffer_->size() == 0)
-        Wait(kEventWaitPeriod);  // Waiting for Event or Timeout
-
-    if (mv_shared_buffer_->ReadFront(buffer, mv_queue_size_, &bytes) && 
-        bytes == mv_queue_size_) {
-        RTC_LOG(INFO) << "Getted " << bytes << " of image";
-
-        char *name = "test.jpg";
-        FILE *pFile;
-        pFile = fopen(name, "wb");
-        fwrite(buffer, sizeof(uint8_t), bytes, pFile);
-        fclose(pFile);
-    }
-    return true;
-}
-
 void RaspiHttpImage::GetMotionImage(uint8_t *buffer, int len) {
-    RTC_DCHECK(len >= (mvx_ * mvy_))
-        << "Motion buffer size is too small to copy!";
     // std::memcpy(buffer, motion_, mvx_ * mvy_);
 }
