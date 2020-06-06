@@ -180,6 +180,8 @@ int32_t RaspiEncoderImpl::InitEncode(const VideoCodec* codec_settings,
     encoded_image_.SetEncodedData(
         EncodedImageBuffer::Create(required_capacity));
 
+    httpImage = new RaspiHttpImage(initial_res.width_, initial_res.height_);
+
     // start capture in here
     mmal_encoder_->StartCapture();
 
@@ -216,6 +218,12 @@ int32_t RaspiEncoderImpl::Release() {
         mmal_encoder_->UninitEncoder();
         mmal_encoder_ = nullptr;
     }
+
+    if (httpImage)
+    {
+        httpImage->clear();
+    }
+    
     return WEBRTC_VIDEO_CODEC_OK;
 }
 
@@ -424,6 +432,9 @@ bool RaspiEncoderImpl::DrainProcess() {
     //  The GetEncodedFrame function will wait in block state
     //  until there is a new buf or timeout.
     buf = mmal_encoder_->GetEncodedFrame();
+
+    // Add to http image
+    this->httpImage->addBuffer(buf);
 
     // encoded_image_callback must be registered before pass
     // the frame to WebRTC native stack.

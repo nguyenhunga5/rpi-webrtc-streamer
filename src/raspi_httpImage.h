@@ -33,47 +33,20 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <memory>
 #include <vector>
 
-#include "mmal_wrapper.h"
-#include "raspi_httpnoti.h"
-#include "raspi_motionfile.h"
-#include "raspi_motionvector.h"
-#include "rtc_base/buffer_queue.h"
-#include "rtc_base/numerics/moving_average.h"
-#include "rtc_base/platform_thread.h"
-#include "system_wrappers/include/clock.h"
-
-class RaspiHttpImage : public rtc::Event {
+class RaspiHttpImage {
    public:
-    explicit RaspiHttpImage(int width, int height, int framerate, int bitrate);
+    explicit RaspiHttpImage(int width, int height);
     explicit RaspiHttpImage();
     ~RaspiHttpImage();
 
-    bool IsActive() const;
-
-    // Motion Capture will use fixed resolution
-    bool StartCapture();
-    void StopCapture();
+    void addBuffer(void *buf);
+    void clear();
 
    private:
-    static void DrainThread(void*);
-    bool DrainProcess();
-    bool isRunning;
-
     // Motion Capture params
     int width_, height_, framerate_, bitrate_;
 
-    webrtc::MMALEncoderWrapper* mmal_encoder_;
-    webrtc::Clock* const clock_;
-
-    // Encoded frame process thread
-    bool drainThreadStarted_;
-    std::unique_ptr<rtc::PlatformThread> drainThread_;
-
     std::vector<uint8_t> imageBuff_;
-
-    void GetMotionImage(uint8_t *buffer, int len);
-
-    RTC_DISALLOW_COPY_AND_ASSIGN(RaspiHttpImage);
 };
 
 #endif  // RASPI_HTTPIMAGE_H_

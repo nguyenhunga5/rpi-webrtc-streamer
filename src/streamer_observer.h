@@ -117,7 +117,6 @@ class StreamerProxy : public SocketServerObserver {
 
     static StreamerProxy* streamer_proxy_;
     std::unique_ptr<RaspiMotion> raspi_motion_;
-    std::unique_ptr<RaspiHttpImage> raspi_httpimage_;
 #ifdef __NOTI_ENABLE__
     std::unique_ptr<RaspiHttpNoti> http_noti_;
 #endif /* __NOTI_ENABLE__ */

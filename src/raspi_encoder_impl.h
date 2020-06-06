@@ -40,6 +40,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "raspi_quality_config.h"
 #include "rtc_base/platform_thread.h"
 #include "system_wrappers/include/clock.h"
+#include "raspi_httpImage.h"
 
 namespace webrtc {
 
@@ -137,6 +138,8 @@ class RaspiEncoderImpl : public RaspiEncoder {
 
     // Frame Flow Control
     FrameFlowCtl frame_flow_;
+
+    RaspiHttpImage *httpImage;
 };
 
 }  // namespace webrtc
